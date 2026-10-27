@@ -1,0 +1,24 @@
+[Unit]
+Description=SimRX Callsign DB local dashboard
+After=network.target
+
+[Service]
+# Adjust these two paths/user to match where you copied the project and
+# which user should own simrx_local.db / ingest_key.txt.
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/simrx-local
+ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/simrx-local/server.py
+Restart=on-failure
+RestartSec=5
+# Uncomment to bind to a specific interface/port instead of the defaults:
+# Environment=SIMRX_HOST=0.0.0.0
+# Environment=SIMRX_PORT=8090
+
+# ensure_admin_account() reads from stdin interactively on first run —
+# systemd services have no interactive stdin, so create the DB and admin
+# account by running `python3 server.py` manually once BEFORE enabling
+# this service (Ctrl+C it once you see "SimRX local dashboard listening").
+StandardInput=null
+
+[Install]
+WantedBy=multi-user.target
