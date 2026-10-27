@@ -1,0 +1,73 @@
+/* Map + online chart (Statistics tab). Uses the dashboard's CSS variables. */
+
+/* the [hidden] attribute must beat the display:flex rules below */
+#map-section [hidden], #online-section [hidden] { display: none !important; }
+
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.mpill {
+  background: transparent; color: var(--accent); border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 5px 12px; font-family: var(--mono); font-size: 0.8rem; cursor: pointer;
+}
+.mpill:hover:not(:disabled) { border-color: var(--accent); }
+.mpill.active { background: var(--accent); color: #080F14; border-color: var(--accent); }
+.mpill:disabled { opacity: 0.35; cursor: not-allowed; }
+.pill-sep { width: 1px; align-self: stretch; background: var(--panel-border); margin: 0 6px; }
+
+.map-controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 6px; }
+.map-controls .pill-row { margin-bottom: 0; }
+.map-controls input[type="date"] { width: auto; padding: 5px 8px; font-family: var(--mono); font-size: 0.8rem; }
+.map-controls label.inline { display: inline-flex; flex-direction: row; gap: 6px; align-items: center; margin: 0; font-size: 0.8rem; color: var(--text-dim); }
+.map-controls label.inline input { width: auto; margin: 0; padding: 0; border-radius: 3px; }
+.map-range-label { font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); margin: 4px 0 10px; }
+
+/* isolation: Leaflet panes use z-index 400-1000, which would otherwise paint over the sticky header (z-index 10) */
+#map-canvas { height: 520px; border-radius: var(--radius); border: 1px solid var(--panel-border); background: #0b1118; position: relative; z-index: 0; isolation: isolate; }
+@media (max-width: 640px) { #map-canvas { height: 380px; } }
+/* stock OSM tiles are light: darken them to match the dashboard */
+#map-canvas.tiles-invert .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.55); }
+#map-canvas .leaflet-container { background: #0b1118; font-family: var(--sans); }
+#map-canvas .leaflet-popup-content-wrapper, #map-canvas .leaflet-popup-tip {
+  background: #0b1118; color: var(--text); border: 1px solid var(--panel-border); box-shadow: none;
+}
+#map-canvas .leaflet-popup-content { margin: 10px 12px; font-size: 0.82rem; line-height: 1.5; }
+#map-canvas .leaflet-tooltip { background: #0b1118; color: var(--text); border: 1px solid var(--panel-border); font-family: var(--mono); font-size: 0.75rem; }
+#map-canvas .leaflet-bar a { background: #0b1118; color: var(--text); border-color: var(--panel-border); }
+#map-canvas .leaflet-control-attribution { background: rgba(5, 8, 12, 0.7); color: var(--text-dim); }
+#map-canvas .leaflet-control-attribution a { color: var(--text-dim); }
+
+.map-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.78rem; color: var(--text-dim); margin: 8px 2px; }
+.map-legend .ldot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.map-note { font-size: 0.8rem; color: var(--text-dim); margin: 6px 2px; }
+.map-note.warn { color: #d9a441; }
+
+.tl-bar { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.tl-bar input[type="range"] { flex: 1; width: auto; padding: 0; accent-color: var(--accent); }
+.tl-bar .mpill { padding: 4px 10px; }
+.tl-time { font-family: var(--mono); font-size: 0.82rem; min-width: 170px; text-align: right; color: var(--accent); }
+@media (max-width: 640px) { .tl-time { min-width: 0; font-size: 0.72rem; } }
+
+.online-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 12px; }
+.online-stats .stat .label { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.03em; }
+.online-stats .stat .value { font-family: var(--mono); font-size: 1.3rem; color: var(--accent); }
+.online-stats .stat .sub { font-size: 0.75rem; color: var(--text-dim); }
+
+/* Timeline tab: callsigns grouped into expandable rows */
+tr.group-row { cursor: pointer; }
+tr.group-row:hover td { background: #0b1118; }
+tr.group-row .caret { display: inline-block; width: 14px; color: var(--text-dim); }
+tr.group-row.open .caret { transform: rotate(90deg); }
+tr.child-row td { background: #070b10; color: var(--text-dim); }
+tr.child-row[hidden] { display: none !important; }
+td.none, .none { color: var(--text-dim); font-family: var(--mono); font-size: 0.8rem; }
+
+/* measure tool */
+#map-canvas.measuring, #map-canvas.measuring .leaflet-interactive { cursor: crosshair; }
+.map-measure { font-size: 0.85rem; color: #d9a441; margin: 2px 2px 8px; }
+.map-measure b { color: var(--text); }
+#map-canvas .measure-tip { background: #d9a441; color: #080F14; border-color: #d9a441; font-weight: 600; }
+#map-canvas .measure-tip::before { border-top-color: #d9a441; }
+
+/* map filters */
+.map-controls input[type="search"] { width: 190px; padding: 5px 10px; font-size: 0.82rem; }
+.map-controls select { width: auto; padding: 5px 10px; font-size: 0.82rem; }
+.map-controls .export-link { margin-left: auto; }

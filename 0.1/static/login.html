@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in - SimRX </title>
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="/extra.css" />
+<style>
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 80px); padding: 20px; }
+.login-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 28px 32px; width: 340px; }
+.login-card h1 { font-size: 1.1rem; margin: 0 0 12px; }
+.login-card label { margin-bottom: 12px; }
+.login-card button.primary { width: 100%; }
+.admin-note {
+  border: 1px solid var(--accent); color: var(--accent); background: rgba(51, 175, 199, 0.08);
+  border-radius: var(--radius); padding: 8px 12px; font-size: 0.82rem; margin-bottom: 16px;
+}
+.back-link { margin-top: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-container">
+      <h1 class="brand-title">SimRX</h1>
+      <span class="alpha-badge">Alpha</span>
+  </div>
+  <a href="/" class="nav-btn">← Dashboard</a>
+</header>
+<div class="login-wrap">
+<div class="login-card">
+  <h1>Sign in</h1>
+  <div class="admin-note">Admins only. You don't need an account to browse the site.</div>
+  <form id="form">
+    <label>Username<input type="text" id="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" id="password" autocomplete="current-password" required /></label>
+    <div class="form-error" id="error"></div>
+    <button type="submit" class="primary">Sign in</button>
+  </form>
+  <p class="back-link"><a href="/" class="nav-btn">← Just browse without signing in</a></p>
+</div>
+</div>
+<script>
+document.getElementById("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("error");
+  errorEl.textContent = ""; errorEl.classList.remove("visible");
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || "Sign-in failed"; errorEl.classList.add("visible"); return; }
+    location.href = "/";
+  } catch (err) {
+    errorEl.textContent = "Server unreachable";
+    errorEl.classList.add("visible");
+  }
+});
+</script>
+</body>
+</html>

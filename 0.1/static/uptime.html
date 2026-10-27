@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Uptime - SimRX</title>
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="/extra.css" />
+</head>
+<body>
+<header>
+  <div class="brand-container">
+      <h1 class="brand-title">SimRX</h1>
+      <span class="alpha-badge">Alpha</span>
+  </div>
+  <a href="/" class="nav-btn">← Dashboard</a>
+</header>
+<main>
+  <h1>Uptime</h1>
+
+  <div class="records-grid" id="uptime-grid"></div>
+
+  <h1 style="margin-top:36px">Restarts and collector gaps</h1>
+  <div class="upcal-wrap">
+    <div class="card">
+      <div class="upcal-head">
+        <button type="button" id="cal-prev" aria-label="Previous month">‹</button>
+        <span class="title" id="cal-title"></span>
+        <button type="button" id="cal-next" aria-label="Next month">›</button>
+      </div>
+      <div class="upcal-grid" id="cal-grid"></div>
+      <div class="upcal-legend">
+        <span><span class="mark restart">2</span> restarts</span>
+        <span><span class="mark gap">1</span> collector gaps</span>
+      </div>
+    </div>
+    <div class="card upcal-detail" id="cal-detail"></div>
+  </div>
+</main>
+<script>
+function esc(s) {
+  return (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function fmtTime(unixSec) {
+  if (!unixSec) return "—";
+  return new Date(unixSec * 1000).toLocaleString("en-US");
+}
+function fmtClock(unixSec) {
+  return new Date(unixSec * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+const pad = (n) => String(n).padStart(2, "0");
+const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+let serverStartedAt = null;
+function tickUptime() {
+  const el = document.getElementById("uptime-live");
+  if (!el || serverStartedAt === null) return;
+  el.textContent = fmtDuration(Math.floor(Date.now() / 1000) - serverStartedAt);
+}
+setInterval(tickUptime, 1000);
+
+// day key -> { restarts: [unix], gaps: [{started_at, ended_at, duration_seconds}] }
+const days = {};
+const dayEntry = (k) => (days[k] ||= { restarts: [], gaps: [] });
+let view = new Date(); view.setDate(1);
+let selected = keyOf(new Date());
+
+async function loadUptime() {
+  const res = await fetch("/api/server-uptime");
+  const data = await res.json();
+  serverStartedAt = data.started_at;
+  document.getElementById("uptime-grid").innerHTML = `
+    <div class="card record-card">
+      <div class="period-label">Current uptime</div>
+      <div class="duration" id="uptime-live">${data.uptime_seconds !== null ? fmtDuration(data.uptime_seconds) : "—"}</div>
+      <div class="small-note">since ${fmtTime(data.started_at)}</div>
+    </div>
+    <div class="card record-card">
+      <div class="period-label">Total restarts recorded</div>
+      <div class="duration">${data.restart_count}</div>
+    </div>`;
+  data.recent_starts.forEach(t => dayEntry(keyOf(new Date(t * 1000))).restarts.push(t));
+}
+
+async function loadOutages() {
+  const res = await fetch("/api/collector-outages");
+  const data = await res.json();
+  data.outages.forEach(o => {
+    // a gap is marked on every day it touches
+    const first = new Date(o.started_at * 1000), last = new Date(o.ended_at * 1000);
+    const d = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+    for (let i = 0; i < 62 && d <= last; i++, d.setDate(d.getDate() + 1)) dayEntry(keyOf(d)).gaps.push(o);
+  });
+}
+
+function renderCalendar() {
+  const y = view.getFullYear(), m = view.getMonth();
+  document.getElementById("cal-title").textContent = view.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;          // Monday first
+  const count = new Date(y, m + 1, 0).getDate();
+  const today = keyOf(new Date());
+  let html = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(n => `<div class="upcal-dow">${n}</div>`).join("");
+  for (let i = 0; i < lead; i++) html += '<div class="upcal-day blank"></div>';
+  for (let d = 1; d <= count; d++) {
+    const k = `${y}-${pad(m + 1)}-${pad(d)}`, e = days[k];
+    const marks = e ? `<div class="marks">${e.restarts.length ? `<span class="mark restart" title="${e.restarts.length} restart(s)">${e.restarts.length}</span>` : ""}${e.gaps.length ? `<span class="mark gap" title="${e.gaps.length} collector gap(s)">${e.gaps.length}</span>` : ""}</div>` : "";
+    html += `<button type="button" class="upcal-day${k === today ? " today" : ""}${k === selected ? " sel" : ""}" data-day="${k}"><span class="n">${d}</span>${marks}</button>`;
+  }
+  document.getElementById("cal-grid").innerHTML = html;
+  renderDetail();
+}
+
+function renderDetail() {
+  const e = days[selected], box = document.getElementById("cal-detail");
+  const [y, mo, d] = selected.split("-").map(Number);
+  const title = new Date(y, mo - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  if (!e || (!e.restarts.length && !e.gaps.length)) {
+    box.innerHTML = `<h3>${title}</h3><div class="small-note">No restarts or collector gaps.</div>`;
+    return;
+  }
+  const restarts = [...e.restarts].sort((a, b) => a - b);
+  const gaps = [...e.gaps].sort((a, b) => a.started_at - b.started_at);
+  box.innerHTML = `<h3>${title}</h3>
+    ${restarts.length ? `<div class="group"><div class="group-title">Restarts</div>${restarts.map(t => `<div class="line">${fmtClock(t)}</div>`).join("")}</div>` : ""}
+    ${gaps.length ? `<div class="group"><div class="group-title">Collector gaps</div>${gaps.map(g => `<div class="line">${fmtTime(g.started_at)} → ${fmtTime(g.ended_at)} <span class="small-note">(${fmtDuration(g.duration_seconds)})</span></div>`).join("")}</div>` : ""}`;
+}
+
+document.getElementById("cal-grid").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-day]");
+  if (!b) return;
+  selected = b.dataset.day;
+  renderCalendar();
+});
+document.getElementById("cal-prev").addEventListener("click", () => { view.setMonth(view.getMonth() - 1); renderCalendar(); });
+document.getElementById("cal-next").addEventListener("click", () => { view.setMonth(view.getMonth() + 1); renderCalendar(); });
+
+(async () => {
+  await Promise.all([loadUptime(), loadOutages()]);
+  // open on the most recent day that has something to show
+  const marked = Object.keys(days).filter(k => days[k].restarts.length || days[k].gaps.length).sort();
+  if (marked.length) {
+    selected = marked[marked.length - 1];
+    const [y, mo] = selected.split("-").map(Number);
+    view = new Date(y, mo - 1, 1);
+  }
+  renderCalendar();
+})();
+</script>
+</body>
+</html>

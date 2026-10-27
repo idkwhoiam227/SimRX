@@ -1,0 +1,106 @@
+/* Shared by index.html, uptime.html and login.html. Uses only the site's own colour variables. */
+
+/* ---- header buttons (Uptime, Sign in, Sign out) ---- */
+.nav-btn, #auth-box a.nav-btn {
+  display: inline-block; background: transparent; border: 1px solid var(--panel-border); color: var(--text-dim);
+  padding: 8px 14px; border-radius: var(--radius); cursor: pointer; font-size: 0.86rem; font-family: var(--sans);
+  text-decoration: none; transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.nav-btn:hover, #auth-box a.nav-btn:hover { border-color: var(--panel-border-hover); color: var(--text); text-decoration: none; }
+.nav-btn.accent, #auth-box a.nav-btn.accent { border-color: var(--accent); color: var(--accent); }
+.nav-btn.accent:hover, #auth-box a.nav-btn.accent:hover { background: var(--accent); color: #080F14; }
+#auth-box { display: flex; align-items: center; gap: 10px; }
+.auth-user { font-family: var(--mono); font-size: 0.82rem; color: var(--text); }
+
+/* ---- TX counter next to a callsign (Timeline) ---- */
+.badge {
+  display: inline-block; font-family: var(--mono); font-size: 0.72rem; font-weight: 600; line-height: 1.5;
+  padding: 0 9px; margin-left: 8px; border-radius: 999px; vertical-align: 1px; letter-spacing: 0.02em;
+  background: var(--accent); color: #080F14;
+}
+
+/* ---- all-time leaders on the On Air tab ---- */
+.rank {
+  display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 700; line-height: 1.5;
+  padding: 0 8px; margin-left: 8px; border-radius: 999px; vertical-align: 1px; color: #080F14;
+}
+.rank-1 { background: #e2b93b; }
+.rank-2 { background: #c3cbd2; }
+.rank-3 { background: #c8803f; }
+
+/* ---- frequency log: why the row was written ---- */
+.reason {
+  display: inline-block; font-size: 0.72rem; padding: 2px 9px; border-radius: 999px; border: 1px solid;
+  margin: 1px 4px 1px 0; white-space: nowrap;
+}
+.reason-start { color: var(--text-dim); border-color: var(--panel-border); }
+.reason-freq { color: var(--accent); border-color: var(--accent); }
+.reason-power { color: #d9a441; border-color: #d9a441; }
+.reason-position { color: #5fc77a; border-color: #5fc77a; }
+.reason-mode { color: #a58bf0; border-color: #a58bf0; }
+.empty { color: var(--text-dim); font-family: var(--mono); font-size: 0.8rem; }
+.admin-tools button { margin-right: 8px; }
+
+/* error box in the site's own red (was an older tint) */
+.form-error.visible { background: rgba(231, 65, 36, 0.08); }
+
+/* ---- Uptime: calendar with marks ---- */
+.upcal-wrap { display: grid; grid-template-columns: minmax(300px, 520px) 1fr; gap: 14px; align-items: start; }
+@media (max-width: 800px) { .upcal-wrap { grid-template-columns: 1fr; } }
+.upcal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.upcal-head .title { font-family: var(--mono); font-size: 0.95rem; }
+.upcal-head button { background: transparent; border: 1px solid var(--panel-border); color: var(--text-dim);
+  border-radius: 10px; padding: 3px 11px; cursor: pointer; font-size: 0.9rem; }
+.upcal-head button:hover { border-color: var(--panel-border-hover); color: var(--text); }
+.upcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.upcal-dow { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); text-align: center; text-transform: uppercase; padding-bottom: 2px; }
+.upcal-day {
+  min-height: 52px; border: 1px solid var(--panel-border); border-radius: 10px; padding: 5px 7px; cursor: pointer;
+  background: transparent; color: var(--text); text-align: left; font-family: var(--sans); font-size: 0.82rem;
+  transition: border-color 0.15s ease;
+}
+.upcal-day:hover { border-color: var(--panel-border-hover); }
+.upcal-day.blank { border-color: transparent; cursor: default; }
+.upcal-day.today .n { color: var(--accent); font-weight: 600; }
+.upcal-day.sel { border-color: var(--accent); }
+.upcal-day .marks { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.mark { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; padding: 0 7px; border-radius: 999px; line-height: 1.5; }
+.mark.restart { background: rgba(51, 175, 199, 0.28); color: #7fdcec; }
+.mark.gap { background: rgba(231, 65, 36, 0.28); color: #ff8f78; }
+.upcal-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 0.78rem; color: var(--text-dim); }
+.upcal-detail h3 { font-family: var(--mono); font-size: 0.9rem; margin: 0 0 8px; }
+.upcal-detail .group { margin-bottom: 12px; }
+.upcal-detail .group-title { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+.upcal-detail .line { padding: 5px 0; border-bottom: 1px solid var(--panel-border); font-size: 0.85rem; }
+.upcal-detail .line:last-child { border-bottom: none; }
+
+/* ---- callsign links and profile page ---- */
+[data-callsign] { cursor: pointer; }
+td.callsign[data-callsign]:hover { text-decoration: underline; }
+.profile-link { font-size: 0.8rem; margin-left: 6px; text-decoration: none; white-space: nowrap; }
+.cs-search { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.cs-search label { flex: 1; min-width: 220px; margin: 0; }
+.profile-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 14px; }
+.profile-head h2 { font-family: var(--mono); font-size: 1.5rem; margin: 0; }
+.pill-on { font-size: 0.75rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--ok); color: var(--ok); }
+.pill-off { font-size: 0.75rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--text-dim); }
+.profile-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.profile-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.profile-cols h3, .profile-sec h3 { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px; letter-spacing: 0.03em; }
+.profile-sec { margin-bottom: 14px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 36%) 1fr auto; gap: 10px; align-items: center; padding: 4px 0; font-size: 0.85rem; }
+.bar-row .bar { height: 8px; border-radius: 999px; background: #11181f; overflow: hidden; }
+.bar-row .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bar-row .bar-val { font-family: var(--mono); font-size: 0.78rem; color: var(--text-dim); }
+.profile-map { height: 300px; border-radius: var(--radius); border: 1px solid var(--panel-border); background: #0b1118; position: relative; z-index: 0; isolation: isolate; }
+.profile-map.tiles-invert .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.55); }
+.profile-map .leaflet-popup-content-wrapper, .profile-map .leaflet-popup-tip { background: #0b1118; color: var(--text); border: 1px solid var(--panel-border); }
+.places-list { margin-top: 10px; font-size: 0.82rem; color: var(--text-dim); }
+.places-list span { display: inline-block; margin: 2px 12px 2px 0; font-family: var(--mono); }
+.export-link { font-size: 0.82rem; }
+.banner-bad { color: var(--danger); font-size: 0.82rem; }
+
+/* links added by the dashboard use the accent colour (not the browser's blue/purple), visited or not */
+a.profile-link, a.profile-link:visited, a.export-link, a.export-link:visited,
+.leaflet-container a.profile-link, .leaflet-container a.export-link { color: var(--accent); text-decoration: none; }
+a.profile-link:hover, a.export-link:hover, a.profile-link:focus-visible, a.export-link:focus-visible { text-decoration: underline; }

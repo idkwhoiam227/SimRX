@@ -1,0 +1,14 @@
+[Unit]
+Description=SimRX collector (talks to SimTX itself, replaces mitmweb + sightings_addon + simtx.jar)
+After=network-online.target simrx-dashboard.service
+Wants=network-online.target
+
+[Service]
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/simrx-local
+ExecStart=/usr/bin/python3 simtx_collector.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SimRX</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="/map.css" />
+<link rel="stylesheet" href="/extra.css" />
+</head>
+<body>
+<header>
+  <!-- Перенесли блок сюда, заменив старый логотип -->
+  <div class="brand-container">
+      <h1 class="brand-title">SimRX</h1>
+      <span class="alpha-badge">Alpha</span>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="live" class="active">On Air</button>
+    <button data-tab="timeline">Timeline</button>
+    <button data-tab="records">Records</button>
+    <button data-tab="stats">Statistics</button>
+    <button data-tab="callsigns">Callsigns</button>
+    <button data-tab="about">About</button>
+  </nav>
+  <div id="collector-status" style="font-size:0.8rem;"></div>
+  <a href="/uptime" class="nav-btn">Uptime</a>
+  <div id="auth-box" style="font-size:0.85rem; color:var(--text-dim);"></div>
+</header>
+<main>
+
+  <section class="tab-panel active" id="tab-live">
+    <h1>Stations currently on air</h1>
+    <div class="card"><table id="live-table"><thead>
+      <tr><th>Callsign</th><th>Frequency</th><th>Band</th><th>Mode</th><th>Source Type</th><th>On Air</th></tr>
+    </thead><tbody></tbody></table></div>
+  </section>
+
+
+  <section class="tab-panel" id="tab-about">
+  <div class="card">
+    <h1>About</h1>
+    <p class="lede">What SimRX is, where the data comes from, and credits</p>
+    <p>SimRX is an unofficial fan project and is not affiliated with SimTX. It connects to the SimTX server as an anonymous listener (no account) and records what the server sends to every connected client: who is transmitting, on which frequency and mode, with what power and from which in-game position, and which receivers are connected. From that it builds the live view, history, statistics, callsign profiles and the map.</p>
+    <p>Positions are the in-game (virtual) locations of transmitters. SimRX stores no personal information about players: no player accounts, no real names, no network addresses. A transmission is timed from the moment SimRX first sees it, so history is approximate: it can start a little late, and there are gaps when SimRX was offline.</p>
+    <p style="font-size: 0.85rem;">SimRX is made with qrmcat's permission. If she wants it taken down, I'll comply.</p>
+    <p style="font-size: 0.85rem;">Band plan: SDR++ by Alexandre Rouma (Ryzerth). Maps: © OpenStreetMap contributors, drawn with Leaflet.</p>
+  </div>
+</section>
+
+
+
+  <section class="tab-panel" id="tab-timeline">
+    <h1>Transmission timeline</h1>
+    <div class="period-bar" id="timeline-mode">
+      <button data-mode="recent" class="active">Recent</button>
+      <div class="calendar-wrap">
+        <button type="button" id="timeline-date-trigger" style="padding:6px 14px;">Pick a date</button>
+        <div class="calendar-popover" id="calendar-popover" style="display:none"></div>
+      </div>
+    </div>
+    <p class="small-note" id="timeline-count"></p>
+    <div class="card"><table id="timeline-table"><thead>
+      <tr><th>Callsign</th><th>Frequency</th><th>Band</th><th>Mode</th><th>Started</th><th>Duration</th><th>Lat</th><th>Lon</th><th>Status</th><th></th></tr>
+    </thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="tab-panel" id="tab-records">
+    <h1>Duration records</h1>
+    <div class="records-grid" id="online-grid"></div>
+    <div class="records-grid" id="records-grid"></div>
+
+    <h1 style="margin-top:36px">Band popularity</h1>
+    <div class="records-grid" id="band-groups"></div>
+    <div class="card" style="margin-top:14px"><canvas id="bands-chart" height="110"></canvas></div>
+
+    <h1 style="margin-top:36px">Popular frequency ranges</h1>
+    <div class="toggle-row">
+      <label for="range-width" style="margin:0">Range width:</label>
+      <select id="range-width">
+        <option value="100">100 kHz</option>
+        <option value="500">500 kHz</option>
+        <option value="1000">1 MHz</option>
+        <option value="3000" selected>3 MHz</option>
+        <option value="5000">5 MHz</option>
+        <option value="10000">10 MHz</option>
+      </select>
+    </div>
+    <div class="card"><canvas id="freqs-chart" height="110"></canvas></div>
+  </section>
+
+  <section class="tab-panel" id="tab-stats">
+    <h1>Statistics</h1>
+    <div class="records-grid" id="summary-grid"></div>
+
+    <div id="online-section"></div>
+    <div id="map-section"></div>
+
+    <h1 style="margin-top:36px">Top callsigns by total time on air</h1>
+    <div class="card"><canvas id="top-callsigns-chart" height="110"></canvas></div>
+
+    <h1 style="margin-top:36px">Modulation mode popularity</h1>
+    <div class="card"><canvas id="modes-chart" height="90"></canvas></div>
+
+    <h1 style="margin-top:36px">Activity by hour of day</h1>
+    <div class="card"><canvas id="hourly-chart" height="90"></canvas></div>
+  </section>
+
+  <section class="tab-panel" id="tab-callsigns">
+    <h1>Callsigns</h1>
+    <div id="profile-root"></div>
+
+    <div class="card admin-tools" id="freq-admin" style="display:none; margin-top:24px">
+      <div class="small-note" style="margin:0 0 10px">Admin tools for the frequency changes log. They only change that log: sessions, statistics and everything else stay as they are.</div>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <input type="checkbox" id="freq-toggle" />
+        <label for="freq-toggle" style="margin:0">Record frequency, power and position changes</label>
+      </div>
+      <button type="button" class="primary small" id="freq-compact">Compact (keep only changes)</button>
+      <button type="button" class="danger small" id="freq-clear">Delete the whole frequency log</button>
+      <span class="small-note" id="freq-admin-msg" style="margin-left:10px"></span>
+    </div>
+  </section>
+
+</main>
+<script>
+const API = "";
+
+// 4625 -> "4625 kHz", 103300 -> "103.3 MHz", 2400000 -> "2.4 GHz" (kHz below 30 MHz, MHz below 1 GHz)
+function fmtFreq(khz) {
+  if (khz == null || !Number.isFinite(Number(khz))) return "—";
+  khz = Number(khz);
+  const t = (x) => String(Number(x.toFixed(3)));
+  if (khz < 30000) return `${t(khz)} kHz`;
+  if (khz < 1000000) return `${t(khz / 1000)} MHz`;
+  return `${t(khz / 1000000)} GHz`;
+}
+
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+function fmtTime(unixSec) {
+  if (!unixSec) return "—";
+  return new Date(unixSec * 1000).toLocaleString("en-US");
+}
+function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ---- auth ----
+let currentAuth = { authenticated: false, username: null };
+
+async function loadAuth() {
+  const res = await fetch(`${API}/api/session`);
+  currentAuth = await res.json();
+  const box = document.getElementById("auth-box");
+  if (currentAuth.authenticated) {
+    box.innerHTML = `<span class="auth-user">${esc(currentAuth.username)}</span> <a href="#" id="logout-link" class="nav-btn">Sign out</a>`;
+    document.getElementById("logout-link").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await fetch(`${API}/api/logout`, { method: "POST" });
+      location.reload();
+    });
+  } else {
+    box.innerHTML = `<a href="/login" class="nav-btn accent">Sign in</a>`;
+  }
+  applyAuthGating();
+}
+
+function applyAuthGating() {
+  const locked = !currentAuth.authenticated;
+  const adm = document.getElementById("freq-admin");
+  if (adm) adm.style.display = locked ? "none" : "block";
+  if (typeof loadTimeline === "function") loadTimeline();
+}
+loadAuth();
+
+
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b === btn));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + btn.dataset.tab));
+});
+
+// ---- live tab ----
+const PLACES = ["", "1st", "2nd", "3rd"];
+const rankPill = (r) => (r ? `<span class="rank rank-${r}" title="${PLACES[r]} place by total time on air, all time">${PLACES[r]}</span>` : "");
+async function loadLive() {
+  try {
+    const res = await fetch(`${API}/api/live`);
+    const data = await res.json();
+    const tbody = document.querySelector("#live-table tbody");
+    if (!data.stations.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No one is on air yet (or the collector isn\'t running)</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.stations.map(s => `
+      <tr>
+        <td class="callsign" data-label="Callsign" data-callsign="${esc(s.callsign)}" title="Open profile">${esc(s.callsign)}${rankPill(s.rank)}</td>
+        <td data-label="Frequency">${fmtFreq(s.freq_khz)}</td>
+        <td data-label="Band">${esc(s.band ?? "—")}</td>
+        <td data-label="Mode">${esc(s.mode)}</td>
+        <td data-label="Source Type">${esc(s.source_type)}</td>
+        <td data-label="On Air">${fmtDuration(s.on_air_seconds)}</td>
+      </tr>`).join("");
+  } catch (e) {
+    document.querySelector("#live-table tbody").innerHTML = `<tr><td colspan="6" class="empty-state">Server unreachable: ${esc(e.message)}</td></tr>`;
+  }
+}
+async function loadCollectorStatus() {
+  try {
+    const res = await fetch(`${API}/api/collector-status`);
+    const data = await res.json();
+    const el = document.getElementById("collector-status");
+    if (data.clock_ok === false) {
+      el.innerHTML = `<span class="dot" style="background:#e74124"></span><span class="banner-bad">Server clock is wrong — recording paused</span>`;
+      return;
+    }
+    if (data.last_ingest_at === null) {
+      el.innerHTML = `<span class="dot" style="background:#7f9189"></span>Collector: no data yet`;
+      return;
+    }
+    const dotColor = data.healthy ? "#505050" : "#e0604a";
+    const label = data.healthy ? "Collector: live" : "Collector: no recent data";
+    const ago = data.seconds_ago < 60 ? `${data.seconds_ago}s ago` : `${Math.round(data.seconds_ago / 60)}m ago`;
+    el.innerHTML = `<span class="dot" style="background:${dotColor}"></span>${label} (${ago})`;
+  } catch {
+    document.getElementById("collector-status").innerHTML = `<span class="dot" style="background:#e0604a"></span>Collector: unknown`;
+  }
+}
+setInterval(loadLive, 5000);
+setInterval(loadCollectorStatus, 5000);
+loadLive();
+loadCollectorStatus();
+
+// ---- timeline tab ----
+let timelineMode = "recent"; // "recent" | "day"
+let selectedDate = null; // {year, month, day} (month is 1-indexed)
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const today = new Date();
+let calendarViewYear = today.getFullYear();
+let calendarViewMonth = today.getMonth() + 1; // 1-indexed
+
+document.getElementById("timeline-mode").addEventListener("click", (e) => {
+  const btn = e.target.closest('button[data-mode="recent"]');
+  if (!btn) return;
+  timelineMode = "recent";
+  selectedDate = null;
+  document.querySelectorAll("#timeline-mode button[data-mode]").forEach(b => b.classList.toggle("active", b === btn));
+  loadTimeline();
+});
+
+// --- calendar popover ---
+const calendarTrigger = document.getElementById("timeline-date-trigger");
+const calendarPopover = document.getElementById("calendar-popover");
+
+calendarTrigger.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = calendarPopover.style.display !== "none";
+  if (isOpen) {
+    calendarPopover.style.display = "none";
+  } else {
+    renderCalendar();
+    calendarPopover.style.display = "block";
+  }
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".calendar-wrap")) calendarPopover.style.display = "none";
+});
+
+async function renderCalendar() {
+  const firstWeekday = new Date(calendarViewYear, calendarViewMonth - 1, 1).getDay();
+  const daysInMonth = new Date(calendarViewYear, calendarViewMonth, 0).getDate();
+
+  let activeDays = [];
+  try {
+    const res = await fetch(`${API}/api/calendar-activity?year=${calendarViewYear}&month=${calendarViewMonth}`);
+    activeDays = (await res.json()).days || [];
+  } catch { /* activity dots are a nice-to-have, calendar still works without them */ }
+
+  const isCurrentMonth = calendarViewYear === today.getFullYear() && calendarViewMonth === today.getMonth() + 1;
+  const isSelectedMonth = selectedDate && selectedDate.year === calendarViewYear && selectedDate.month === calendarViewMonth;
+
+  let cells = "";
+  for (let i = 0; i < firstWeekday; i++) cells += `<div class="calendar-day other-month"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const classes = ["calendar-day"];
+    if (isCurrentMonth && d === today.getDate()) classes.push("today");
+    if (isSelectedMonth && d === selectedDate.day) classes.push("selected");
+    if (activeDays.includes(d)) classes.push("has-data");
+    cells += `<div class="${classes.join(" ")}" data-day="${d}">${d}</div>`;
+  }
+
+  calendarPopover.innerHTML = `
+    <div class="calendar-header">
+      <button type="button" class="calendar-nav" id="cal-prev">‹</button>
+      <span class="label">${MONTH_NAMES[calendarViewMonth - 1]} ${calendarViewYear}</span>
+      <button type="button" class="calendar-nav" id="cal-next">›</button>
+    </div>
+    <div class="calendar-grid">
+      ${WEEKDAY_NAMES.map(w => `<div class="calendar-weekday">${w}</div>`).join("")}
+      ${cells}
+    </div>
+  `;
+
+  document.getElementById("cal-prev").addEventListener("click", (e) => {
+    e.stopPropagation();
+    calendarViewMonth--;
+    if (calendarViewMonth < 1) { calendarViewMonth = 12; calendarViewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", (e) => {
+    e.stopPropagation();
+    calendarViewMonth++;
+    if (calendarViewMonth > 12) { calendarViewMonth = 1; calendarViewYear++; }
+    renderCalendar();
+  });
+  calendarPopover.querySelectorAll(".calendar-day[data-day]").forEach(cell => {
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const day = Number(cell.dataset.day);
+      selectedDate = { year: calendarViewYear, month: calendarViewMonth, day };
+      timelineMode = "day";
+      document.querySelectorAll("#timeline-mode button[data-mode]").forEach(b => b.classList.remove("active"));
+      calendarTrigger.textContent = `📅 ${MONTH_NAMES[calendarViewMonth - 1].slice(0, 3)} ${day}, ${calendarViewYear}`;
+      calendarPopover.style.display = "none";
+      loadTimeline();
+    });
+  });
+}
+
+async function loadTimeline() {
+  const countEl = document.getElementById("timeline-count");
+  let data;
+  if (timelineMode === "day" && selectedDate) {
+    const { year, month, day } = selectedDate;
+    const res = await fetch(`${API}/api/sessions/day?year=${year}&month=${month}&day=${day}`);
+    data = await res.json();
+    countEl.textContent = `${data.total_sessions} session(s) on ${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+  } else {
+    const res = await fetch(`${API}/api/sessions/recent?limit=100`);
+    data = await res.json();
+    countEl.textContent = data.total_sessions > data.sessions.length
+      ? `Showing the ${data.sessions.length} most recent of ${data.total_sessions} total — pick a date above for older ones`
+      : `${data.total_sessions} session(s) total`;
+  }
+
+  const tbody = document.querySelector("#timeline-table tbody");
+  if (!data.sessions.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No data</td></tr>';
+    return;
+  }
+
+  // Same callsign several times -> one expandable row with a TX counter; the individual
+  // transmissions (when / where / what) are inside. Single transmissions stay plain rows.
+  const num = (v) => (v == null ? '<span class="none">NONE</span>' : Number(v).toFixed(4));
+  const sessionRow = (s, child, parent) => `
+    <tr data-session-id="${s.id}"${child ? ` class="child-row" data-parent="${parent}" hidden` : ""}>
+      <td class="callsign" data-label="Callsign"${child ? "" : ` data-callsign="${esc(s.callsign)}" title="Open profile"`}>${child ? "↳" : esc(s.callsign)}</td>
+      <td data-label="Frequency">${fmtFreq(s.freq_khz)}</td>
+      <td data-label="Band">${esc(s.band ?? "—")}</td>
+      <td data-label="Mode">${esc(s.mode)}</td>
+      <td data-label="Started">${fmtTime(s.started_at)}</td>
+      <td data-label="Duration">${fmtDuration(s.duration_seconds)}</td>
+      <td data-label="Lat">${num(s.lat)}</td>
+      <td data-label="Lon">${num(s.lon)}</td>
+      <td data-label="Status"><span class="pill ${s.live ? "live" : ""}">${s.live ? "on air" : "finished"}</span></td>
+      <td>${currentAuth.authenticated ? `<button type="button" class="danger small delete-session">Delete</button>` : ""}</td>
+    </tr>`;
+  const groups = new Map();                       // sessions arrive newest first, so groups do too
+  data.sessions.forEach(s => { if (!groups.has(s.callsign)) groups.set(s.callsign, []); groups.get(s.callsign).push(s); });
+  let html = "", gi = 0;
+  for (const [callsign, rows] of groups) {
+    if (rows.length === 1) { html += sessionRow(rows[0], false); continue; }
+    const id = `g${gi++}`;
+    const uniq = (f) => [...new Set(rows.map(f))];
+    const same = (vals, fmt) => (vals.length === 1 ? fmt(vals[0]) : '<span class="none">varies</span>');
+    const places = uniq(r => `${r.lat},${r.lon}`);
+    const live = rows.some(r => r.live);
+    html += `
+    <tr class="group-row" data-group="${id}">
+      <td class="callsign" data-label="Callsign"><span class="caret">▸</span> ${esc(callsign)} <span class="badge">${rows.length} TX</span><a href="#callsign=${encodeURIComponent(callsign)}" class="profile-link" data-callsign="${esc(callsign)}" title="Open profile">profile ↗</a></td>
+      <td data-label="Frequency">${same(uniq(r => r.freq_khz), v => fmtFreq(v))}</td>
+      <td data-label="Band">${same(uniq(r => r.band), v => esc(v ?? "—"))}</td>
+      <td data-label="Mode">${same(uniq(r => r.mode), v => esc(v))}</td>
+      <td data-label="Started">${fmtTime(rows[0].started_at)}</td>
+      <td data-label="Duration">${fmtDuration(rows.reduce((a, r) => a + r.duration_seconds, 0))}</td>
+      <td data-label="Lat">${same(places, () => num(rows[0].lat))}</td>
+      <td data-label="Lon">${same(places, () => num(rows[0].lon))}</td>
+      <td data-label="Status"><span class="pill ${live ? "live" : ""}">${live ? "on air" : "finished"}</span></td>
+      <td></td>
+    </tr>` + rows.map(r => sessionRow(r, true, id)).join("");
+  }
+  tbody.innerHTML = html;
+
+  tbody.onclick = async (e) => {
+    if (e.target.closest("[data-callsign]")) return;      // opening a profile, not expanding the group
+    const del = e.target.closest(".delete-session");
+    if (del) {
+      const id = del.closest("tr").dataset.sessionId;
+      if (!confirm(`Delete this session (id ${id})? This can't be undone.`)) return;
+      const res = await fetch(`${API}/api/sessions/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadTimeline();   // reload so the group counters stay correct
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Delete failed (HTTP ${res.status})`);
+      }
+      return;
+    }
+    const g = e.target.closest("tr.group-row");
+    if (g) {
+      const open = !g.classList.contains("open");
+      g.classList.toggle("open", open);
+            tbody.querySelectorAll(`tr.child-row[data-parent="${g.dataset.group}"]`).forEach(r => { r.hidden = !open; });
+    }
+  };
+}
+loadTimeline();
+
+// ---- records tab ----
+let bandsChart = null;
+let freqsChart = null;
+
+async function loadOnlineStats() {
+  const res = await fetch(`${API}/api/stats/online`);
+  const data = await res.json();
+  const grid = document.getElementById("online-grid");
+  grid.innerHTML = `
+    <div class="card record-card">
+      <div class="period-label">Currently on air</div>
+      <div class="duration">${data.current}</div>
+      <div class="small-note">stations at once</div>
+    </div>
+    <div class="card record-card">
+      <div class="period-label">Peak online, all time</div>
+      <div class="duration">${data.peak}</div>
+      <div class="small-note">${data.peak_at ? "recorded " + fmtTime(data.peak_at) : "no data yet"}</div>
+    </div>
+  `;
+}
+
+async function loadRecords() {
+  const res = await fetch(`${API}/api/records`);
+  const data = await res.json();
+  const grid = document.getElementById("records-grid");
+  const labels = { week: "Week", month: "Month", year: "Year", all: "All Time" };
+  grid.innerHTML = Object.entries(data.records).map(([period, rec]) => `
+    <div class="card record-card">
+      <div class="period-label">Record · ${labels[period]}</div>
+      ${rec ? `
+        <div class="callsign">${esc(rec.callsign)}</div>
+        <div class="duration">${fmtDuration(rec.duration_seconds)}</div>
+        <div class="small-note">${fmtFreq(rec.freq_khz)} · ${esc(rec.mode)} · started ${fmtTime(rec.started_at)}</div>
+      ` : `<div class="empty-state">No data</div>`}
+    </div>
+  `).join("");
+}
+
+// colour per band group, shared by the group cards and the per-band bars
+const GROUP_COLORS = {
+  ham: "#505050",   // amateur
+  swbc: "#33AFC7",  // shortwave broadcast
+  pmr: "#33C7A8",   // PMR446
+  fm: "#E05A47",    // FM broadcast
+  other: "#878787", // everything else
+};
+
+// 102000..105000 kHz -> "102–105 MHz"; 500..600 kHz -> "500–600 kHz"
+function fmtFreqRange(loKhz, hiKhz) {
+  const useMHz = hiKhz > 1000;
+  const f = (v) => {
+    const x = useMHz ? v / 1000 : v;
+    return Number.isInteger(x) ? String(x) : String(+x.toFixed(3));
+  };
+  return `${f(loKhz)}–${f(hiKhz)} ${useMHz ? "MHz" : "kHz"}`;
+}
+
+async function loadBandsChart() {
+  const res = await fetch(`${API}/api/stats/bands`);
+  const data = await res.json();
+
+  // group cards (always all five, so the split is visible even with zeros)
+  const total = data.groups.reduce((s, g) => s + g.count, 0);
+  document.getElementById("band-groups").innerHTML = data.groups.map(g => `
+    <div class="card record-card">
+      <div class="period-label"><span class="dot" style="background:${GROUP_COLORS[g.group]}"></span>${esc(g.label)}</div>
+      <div class="duration">${g.count}</div>
+      <div class="small-note">${total ? Math.round(g.count / total * 100) : 0}% of sessions</div>
+    </div>
+  `).join("");
+
+  if (bandsChart) bandsChart.destroy();
+  const ctx = document.getElementById("bands-chart");
+  if (!data.bands.length) {
+    ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height);
+    return;
+  }
+  const groupLabel = Object.fromEntries(data.groups.map(g => [g.group, g.label]));
+  bandsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.bands.map(b => b.band),
+      datasets: [{
+        label: "Sessions",
+        data: data.bands.map(b => b.count),
+        backgroundColor: data.bands.map(b => GROUP_COLORS[b.group]),
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { afterLabel: (c) => groupLabel[data.bands[c.dataIndex].group] } },
+      },
+      scales: {
+        x: { ticks: { color: "#7f9189", maxRotation: 60, minRotation: 45 }, grid: { color: "#23302a" } },
+        y: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+async function loadFreqsChart() {
+  const width = document.getElementById("range-width").value;
+  const res = await fetch(`${API}/api/stats/top-frequencies?limit=15&width_khz=${encodeURIComponent(width)}`);
+  const data = await res.json();
+  if (freqsChart) freqsChart.destroy();
+  const ctx = document.getElementById("freqs-chart");
+  if (!data.ranges.length) {
+    ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height);
+    return;
+  }
+  freqsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.ranges.map(r => fmtFreqRange(r.lo_khz, r.hi_khz)),
+      datasets: [{ label: "Sessions", data: data.ranges.map(r => r.count), backgroundColor: "#505050" }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7f9189", maxRotation: 60, minRotation: 60 }, grid: { color: "#23302a" } },
+        y: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" }, beginAtZero: true },
+      },
+    },
+  });
+}
+document.getElementById("range-width").addEventListener("change", loadFreqsChart);
+
+function loadRecordsTab() {
+  loadOnlineStats();
+  loadRecords();
+  loadBandsChart();
+  loadFreqsChart();
+}
+loadRecordsTab();
+document.querySelector('[data-tab="records"]').addEventListener("click", loadRecordsTab);
+
+// ---- stats tab ----
+let topCallsignsChart = null;
+let modesChart = null;
+let hourlyChart = null;
+
+async function loadSummary() {
+  const res = await fetch(`${API}/api/stats/summary`);
+  const data = await res.json();
+  document.getElementById("summary-grid").innerHTML = `
+    <div class="card record-card">
+      <div class="period-label">Unique callsigns</div>
+      <div class="duration">${data.unique_callsigns}</div>
+    </div>
+    <div class="card record-card">
+      <div class="period-label">Total sessions recorded</div>
+      <div class="duration">${data.total_sessions}</div>
+    </div>
+    <div class="card record-card">
+      <div class="period-label">Average session duration</div>
+      <div class="duration">${fmtDuration(data.avg_duration_seconds)}</div>
+    </div>
+  `;
+}
+
+async function loadTopCallsignsChart() {
+  const res = await fetch(`${API}/api/stats/top-callsigns?limit=10`);
+  const data = await res.json();
+  if (topCallsignsChart) topCallsignsChart.destroy();
+  const ctx = document.getElementById("top-callsigns-chart");
+  if (!data.callsigns.length) { ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height); return; }
+  topCallsignsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.callsigns.map(c => c.callsign),
+      datasets: [{
+        label: "Time on air",
+        data: data.callsigns.map(c => Math.round(c.total_seconds / 60)),
+        backgroundColor: "#33AFC7",
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${fmtDuration(ctx.raw * 60)} (sessions: ${data.callsigns[ctx.dataIndex].session_count})` } },
+      },
+      scales: {
+        x: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" } },
+        y: { ticks: { color: "#7f9189", callback: (v) => `${v} min` }, grid: { color: "#23302a" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+async function loadModesChart() {
+  const res = await fetch(`${API}/api/stats/modes`);
+  const data = await res.json();
+  if (modesChart) modesChart.destroy();
+  const ctx = document.getElementById("modes-chart");
+  if (!data.modes.length) { ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height); return; }
+  modesChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.modes.map(m => m.mode),
+      datasets: [{ label: "Sessions", data: data.modes.map(m => m.count), backgroundColor: "#505050" }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" } },
+        y: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+async function loadHourlyChart() {
+  const res = await fetch(`${API}/api/stats/hourly`);
+  const data = await res.json();
+  if (hourlyChart) hourlyChart.destroy();
+  const ctx = document.getElementById("hourly-chart");
+  hourlyChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.hours.map(h => `${String(h.hour).padStart(2, "0")}:00`),
+      datasets: [{ label: "People transmitting", data: data.hours.map(h => h.count), backgroundColor: "#33AFC7" }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" } },
+        y: { ticks: { color: "#7f9189" }, grid: { color: "#23302a" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+function loadStatsTab() {
+  loadSummary();
+  loadTopCallsignsChart();
+  loadModesChart();
+  loadHourlyChart();
+}
+loadStatsTab();
+document.querySelector('[data-tab="stats"]').addEventListener("click", loadStatsTab);
+
+// ---- frequency history tab ----
+async function loadFreqConfig() {
+  const res = await fetch(`${API}/api/config`);
+  const data = await res.json();
+  document.getElementById("freq-toggle").checked = data.freq_history_enabled;
+}
+loadFreqConfig();
+document.getElementById("freq-toggle").addEventListener("change", async (e) => {
+  await fetch(`${API}/api/config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ freq_history_enabled: e.target.checked }),
+  });
+});
+const REASONS = {
+  start: ["Started", "start"], freq: ["Frequency changed", "freq"], power: ["Power changed", "power"],
+  position: ["Position changed", "position"], mode: ["Mode changed", "mode"],
+};
+const reasonPills = (r) => (r
+  ? r.split(",").map(k => REASONS[k] ? `<span class="reason reason-${REASONS[k][1]}">${REASONS[k][0]}</span>` : "").join("")
+  : '<span class="empty">—</span>');
+const emptyOr = (v, f) => (v == null ? '<span class="empty">empty</span>' : f(v));
+
+async function freqCleanup(action, question) {
+  if (!confirm(question)) return;
+  const msg = document.getElementById("freq-admin-msg");
+  msg.textContent = "Working…";
+  const res = await fetch(`${API}/api/freq-history/cleanup`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) { msg.textContent = out.error || `Failed (HTTP ${res.status})`; return; }
+  msg.textContent = `Done: ${out.removed} rows removed, ${out.kept} kept.`;
+  if (window.reloadProfile) window.reloadProfile();
+}
+document.getElementById("freq-compact").addEventListener("click", () => freqCleanup("compact",
+  "Remove repeated rows from the frequency log?\n\nOnly rows that repeat the previous row of the same callsign are removed. Real changes are kept. Sessions and everything else are not touched."));
+document.getElementById("freq-clear").addEventListener("click", () => freqCleanup("clear",
+  "Delete the ENTIRE frequency log?\n\nThis cannot be undone. Sessions and everything else are not touched."));
+</script>
+<script src="/map.js"></script>
+<script src="/profile.js"></script>
+</body>
+</html>
