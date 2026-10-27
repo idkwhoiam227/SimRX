@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in — SimRX Callsign DB</title>
+<link rel="stylesheet" href="/style.css" />
+<style>
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 28px 32px; width: 320px; }
+.login-card h1 { font-size: 1.1rem; margin: 0 0 16px; }
+.login-card label { margin-bottom: 12px; }
+.login-card button.primary { width: 100%; }
+.login-card a { color: var(--text-dim); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <h1>Sign in — SimRX Callsign DB</h1>
+  <form id="form">
+    <label>Username<input type="text" id="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" id="password" autocomplete="current-password" required /></label>
+    <div class="form-error" id="error"></div>
+    <button type="submit" class="primary">Sign in</button>
+  </form>
+  <p><a href="/">← Just browse without signing in</a></p>
+</div>
+<script>
+document.getElementById("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("error");
+  errorEl.textContent = ""; errorEl.classList.remove("visible");
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || "Sign-in failed"; errorEl.classList.add("visible"); return; }
+    location.href = "/";
+  } catch (err) {
+    errorEl.textContent = "Server unreachable";
+    errorEl.classList.add("visible");
+  }
+});
+</script>
+</body>
+</html>
