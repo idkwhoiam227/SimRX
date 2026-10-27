@@ -1,2 +1,5 @@
 # SimRX
-A project that can monitor SimTX callsigns and make statistics out of them.
+### This project is deprecated, i won't update anything.
+
+> [!NOTE]
+> LLMs were used in this project. Sorry.
